@@ -23,24 +23,24 @@ RCT_EXPORT_METHOD(start) {
     RCTLogInfo(@"[RNLiveAudioStream] start");
     AVAudioSession *audioSession = [AVAudioSession sharedInstance];
     NSError *error = nil;
-    BOOL success;
 
-    // Apple recommended:
-    // Instead of setting your category and mode properties independently, set them at the same time
-    if (@available(iOS 10.0, *)) {
-        success = [audioSession setCategory: AVAudioSessionCategoryPlayAndRecord
-                                       mode: AVAudioSessionModeVoiceChat
-                                    options: AVAudioSessionCategoryOptionDuckOthers |
-                                             AVAudioSessionCategoryOptionAllowBluetooth |
-                                             AVAudioSessionCategoryOptionAllowAirPlay
-                                      error: &error];
-    } else {
-        success = [audioSession setCategory: AVAudioSessionCategoryPlayAndRecord withOptions: AVAudioSessionCategoryOptionDuckOthers error: &error];
-        success = [audioSession setMode: AVAudioSessionModeVoiceChat error: &error] && success;
-    }
-    if (!success || error != nil) {
+    [audioSession setCategory: AVAudioSessionCategoryPlayAndRecord
+                                   mode: AVAudioSessionModeVoiceChat
+                                options: AVAudioSessionCategoryOptionDuckOthers |
+                                         AVAudioSessionCategoryOptionAllowBluetooth |
+                                         AVAudioSessionCategoryOptionAllowAirPlay
+                                  error: &error];
+
+    if (error != nil) {
         RCTLog(@"[RNLiveAudioStream] Problem setting up AVAudioSession category and mode. Error: %@", error);
         return;
+    }
+
+    [audioSession setActive:true error:&error];
+
+    if (error != nil) {
+       RCTLog(@"[RNLiveAudioStream] Problem while activating AVAudioSEssion. Error: %@", error);
+       return;
     }
 
     _recordState.mIsRunning = true;
