@@ -26,8 +26,7 @@ RCT_EXPORT_METHOD(start) {
 
     [audioSession setCategory: AVAudioSessionCategoryPlayAndRecord
                                    mode: AVAudioSessionModeVoiceChat
-                                options: AVAudioSessionCategoryOptionDuckOthers |
-                                         AVAudioSessionCategoryOptionAllowBluetooth |
+                                options: AVAudioSessionCategoryOptionAllowBluetooth |
                                          AVAudioSessionCategoryOptionAllowAirPlay
                                   error: &error];
 
@@ -40,6 +39,13 @@ RCT_EXPORT_METHOD(start) {
 
     if (error != nil) {
        RCTLog(@"[RNLiveAudioStream] Problem while activating AVAudioSEssion. Error: %@", error);
+       return;
+    }
+
+    [audioSession setAggregatedIOPreference:AVAudioSessionIOTypeAggregated error:&error];
+  
+    if (error != nil) {
+       RCTLog(@"[RNLiveAudioStream] Problem while setting aggregated IO preference. Error: %@", error);
        return;
     }
 
@@ -58,16 +64,29 @@ RCT_EXPORT_METHOD(start) {
     AudioQueueStart(_recordState.mQueue, NULL);
 }
 
-RCT_EXPORT_METHOD(stop) {
-    RCTLogInfo(@"[RNLiveAudioStream] stop");
+RCT_EXPORT_METHOD(stop:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock) reject) {
     if (_recordState.mIsRunning) {
+        RCTLogInfo(@"[RNLiveAudioStream] stop");
+        AVAudioSession *audioSession = [AVAudioSession sharedInstance];
+        NSError *error = nil;
+
         _recordState.mIsRunning = false;
         AudioQueueStop(_recordState.mQueue, true);
         for (int i = 0; i < kNumberBuffers; i++) {
             AudioQueueFreeBuffer(_recordState.mQueue, _recordState.mBuffers[i]);
         }
         AudioQueueDispose(_recordState.mQueue, true);
+
+        [audioSession setActive:false error:&error];
+
+        if (error != nil) {
+            RCTLog(@"[RNLiveAudioStream] Problem while deactivating AVAudioSEssion. Error: %@", error);
+            reject(@"stop_failure", @"AVAudioSession not deactivated", nil);
+            return;
+        }
     }
+
+    resolve(@"stopped");
 }
 
 void HandleInputBuffer(void *inUserData,
